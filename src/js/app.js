@@ -47,7 +47,7 @@ function setup() {
     );
     explorer.position.set(0, screenSize.height / 2);
     
-    // play area
+    // movement
     explorer.left.press = () => {
         explorer.vx = -5;
         explorer.vy = 0;
@@ -108,15 +108,15 @@ function setup() {
     }
 
     // CREATE healthbar
-     const healthBar = new Container();
-     healthBar.position.set(screenSize.width -160, 10);
-     gameScene.addChild(healthBar);
+    const healthBar = new Container();
+    healthBar.position.set(screenSize.width -160, 10);
+    gameScene.addChild(healthBar);
  
-     const redRect = new Graphics();
-     redRect.beginFill(0xff0000);
-     redRect.drawRect(0, 0, 150, 15);
-     redRect.endFill();
-     healthBar.addChild(redRect);
+    const redRect = new Graphics();
+    redRect.beginFill(0xff0000);
+    redRect.drawRect(0, 0, 150, 15);
+    redRect.endFill();
+    healthBar.addChild(redRect);
     
     const greenRect = new Graphics();
     greenRect.beginFill(0x00ff00);
@@ -145,6 +145,8 @@ function play(delta) {
     //Move the explorer and contain it inside the dungeon
     explorer.x += explorer.vx;
     explorer.y += explorer.vy;
+
+    contain(explorer, {x: 28, y: 10, width: 488, height: 480});
     //Move the blob monsters
     //Check for a collision between the blobs and the explorer
     //Check for a collision between the explorer and the treasure
