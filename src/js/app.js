@@ -1,5 +1,9 @@
 import * as PIXI from 'pixi.js';
+import { contain } from './helpers/containment';
+import { collisionTest } from './helpers/collision';
+import { generateFoes } from './helpers/monsterGenerator';
 import Explorer from './Explorer';
+
 const Application = PIXI.Application;
 const Sprite = PIXI.Sprite;
 const Container = PIXI.Container;
@@ -14,20 +18,22 @@ const app = new Application({
 
 document.body.appendChild(app.view);
 
-let state, explorer;
+const screenSize = app.renderer.screen;
+const monsters = [];
+let state, explorer, blob, explorerHit,
+healthBar, treasure, door, gameOverText,
+gameScene, gameOverScene;
 
 PIXI.loader
     .add('src/img/chestHunt.json')
     .load(setup);
 
-
 function setup() {
     const id = resources['src/img/chestHunt.json'].textures
-    const screenSize = app.renderer.screen
     const randomY = Math.random() * screenSize.height;
-    const gameScene = new Container();
+    gameScene = new Container();
 
-    // CREATE dungeon
+    // dungeon
     const dungeon = new Sprite(
         id["dungeon.png"]
     );
@@ -35,80 +41,42 @@ function setup() {
     dungeon.height = screenSize.height;
     gameScene.addChild(dungeon);
     
-    // CREATE door
-    const door =  new Sprite(
+    // door
+    door =  new Sprite(
         id['door.png']
     );
+    door.position.set(30,10);
     gameScene.addChild(door);
 
-    // CREATE explorer
+    // chest
+    treasure =  new Sprite(
+        id['treasure.png']
+    );
+    treasure.position.set(screenSize.width-50, screenSize.height / 2);
+    gameScene.addChild(treasure);
+
+    // foes
+    let direction = 1;
+    for(let i = 0; i < generateFoes(); i++){
+        blob =  new Sprite(
+            id['blob.png']
+        );
+        blob.position.set(150 + i * 100, Math.random() * randomY);
+        blob.vy = 5 + Math.random() * 8 * direction;
+        direction *= -1;
+        monsters.push(blob);
+        gameScene.addChild(blob);
+    }
+
+    // explorer
     explorer = new Explorer(
         id['explorer.png']
     );
     explorer.position.set(0, screenSize.height / 2);
-    
-    // movement
-    explorer.left.press = () => {
-        explorer.vx = -5;
-        explorer.vy = 0;
-    };
-
-    explorer.left.release = () => {
-        if (!explorer.right.isDown && explorer.vy === 0) {
-        explorer.vx = 0;
-        }
-    };
-    
-    explorer.up.press = () => {
-        explorer.vy = -5;
-        explorer.vx = 0;
-    };
-    explorer.up.release = () => {
-        if (!explorer.down.isDown && explorer.vx === 0) {
-        explorer.vy = 0;
-        }
-    };
-
-    explorer.right.press = () => {
-        explorer.vx = 5;
-        explorer.vy = 0;
-    };
-    explorer.right.release = () => {
-        if (!explorer.left.isDown && explorer.vy === 0) {
-        explorer.vx = 0;
-        }
-    };
-
-    explorer.down.press = () => {
-        explorer.vy = 5;
-        explorer.vx = 0;
-    };
-    explorer.down.release = () => {
-        if (!explorer.up.isDown && explorer.vx === 0) {
-        explorer.vy = 0;
-        }
-    };
-
     gameScene.addChild(explorer);
 
-    // CREATE treasure
-    const treasure =  new Sprite(
-        id['treasure.png']
-    );
-    treasure.position.set(screenSize.width-50, Math.random() * randomY);
-    gameScene.addChild(treasure);
-
-    // CREATE foes
-    for(let i = 0; i < generatingFoes(); i++){
-        const blob =  new Sprite(
-            id['blob.png']
-        );
-        blob.position.set(150 + i * 100, Math.random() * randomY)
-        gameScene.addChild(blob);
-    }
-
-    // CREATE healthbar
-    const healthBar = new Container();
+    // health
+    healthBar = new Container();
     healthBar.position.set(screenSize.width -160, 10);
     gameScene.addChild(healthBar);
  
@@ -124,14 +92,24 @@ function setup() {
     greenRect.endFill();
     healthBar.addChild(greenRect);
 
-    // staging the gamescene
+    healthBar.health = greenRect;
+
+    // staging the game scene
     app.stage.addChild(gameScene);
 
-    const gameOverText = new Text('Game Over');
-    const gameOverScene = new Container();
+    // game over scene
+    const style = new PIXI.TextStyle({
+        fontFamily: "Futura",
+        fontSize: 64,
+        fill: "white"
+      });
+    gameOverText = new Text('Game', style);
+    gameOverText.position.set(screenSize.width / 2 - 64, screenSize.height / 2 - 32);
+    gameOverScene = new Container();
     gameOverScene.addChild(gameOverText);
-    gameOverScene.visible = false;
+    // gameOverScene.visible = false;
 
+    // GAME STATE
     state = play;
 
     app.ticker.add(delta => gameLoop(delta));
@@ -141,26 +119,73 @@ function gameLoop(delta) {
     state(delta);
 }
 
-function play(delta) {
-    //Move the explorer and contain it inside the dungeon
+function play() {
+    // move the explorer & contain him
     explorer.x += explorer.vx;
     explorer.y += explorer.vy;
 
-    contain(explorer, {x: 28, y: 10, width: 488, height: 480});
-    //Move the blob monsters
-    //Check for a collision between the blobs and the explorer
-    //Check for a collision between the explorer and the treasure
-    //Check for a collision between the treasure and the door
-    //Decide whether the game has been won or lost
-    //Change the game `state` to `end` when the game is finished
-}
+    contain(
+        explorer,
+        {
+            x: 30,
+            y: 30,
+            width: screenSize.width - 30,
+            height: screenSize.height - 30
+        }
+    );
+    // move the monsters & check for a collision
+    monsters.forEach( blob => {
+        blob.y += blob.vy;
 
+        let blobHitsWall = contain(
+            blob,
+            {
+                x: 30,
+                y: 30,
+                width: screenSize.width - 30,
+                height: screenSize.height - 30
+            }
+        );
+
+        if (blobHitsWall === "top" || blobHitsWall === "bottom") {
+            blob.vy *= -1;
+        }
+        if(collisionTest(explorer, blob)) {
+            explorerHit = true;
+        }
+    })
+
+    if(explorerHit) {
+        // make the explorer semi-transparent
+        explorer.alpha = 0.5;
+      
+        // reduce the width of the health bar
+        healthBar.health.width -= 5;
+        explorerHit = false;
+      } else {
+        // make the explorer normal if it hasn't been hit
+        explorer.alpha = 1;
+      }
+    // check for a collision 
+    if (collisionTest(explorer, treasure)) {
+        treasure.x = explorer.x + 8;
+        treasure.y = explorer.y + 8;
+        
+      }
+    // check if the explorer is alive
+      if (healthBar.health.width < 0) {
+        state = end;
+        gameOverText.text = 'You lost!';
+      }
+    // check for a collision 
+    if (collisionTest(treasure, door)) {
+        state = end;
+        gameOverText.text = 'You won';
+      }
+}
+//change the game state to end when the game is finished
 function end() {
-}
-
-// Helper functions
-
-function generatingFoes() {
-    return 3 + Math.floor( Math.random() * 12 );
-
+    gameScene.visible = false;
+    app.stage.addChild(gameOverScene);
+    // gameOverScene.visible = true;
 }
