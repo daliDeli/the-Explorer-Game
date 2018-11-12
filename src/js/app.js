@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { contain } from './helpers/containment';
 import { collisionTest } from './helpers/collision';
-import { generateFoes } from './helpers/monsterGenerator';
+import { randomGen } from './helpers/monsterGenerator';
 import Explorer from './Explorer';
 
 const Application = PIXI.Application;
@@ -28,6 +28,7 @@ PIXI.loader
     .add('src/img/chestHunt.json')
     .load(setup);
 
+// GAME SETUP
 function setup() {
     const id = resources['src/img/chestHunt.json'].textures
     const randomY = Math.random() * screenSize.height;
@@ -57,12 +58,12 @@ function setup() {
 
     // foes
     let direction = 1;
-    for(let i = 0; i < generateFoes(); i++){
+    for(let i = 0; i < randomGen(7, 15); i++){
         blob =  new Sprite(
             id['blob.png']
         );
         blob.position.set(150 + i * 100, Math.random() * randomY);
-        blob.vy = 5 + Math.random() * 8 * direction;
+        blob.vy = randomGen(5, 10) * direction;
         direction *= -1;
         monsters.push(blob);
         gameScene.addChild(blob);
@@ -99,15 +100,13 @@ function setup() {
 
     // game over scene
     const style = new PIXI.TextStyle({
-        fontFamily: "Futura",
+        fontFamily: "monospace",
         fontSize: 64,
         fill: "white"
       });
     gameOverText = new Text('Game', style);
-    gameOverText.position.set(screenSize.width / 2 - 64, screenSize.height / 2 - 32);
     gameOverScene = new Container();
     gameOverScene.addChild(gameOverText);
-    // gameOverScene.visible = false;
 
     // GAME STATE
     state = play;
@@ -118,7 +117,7 @@ function setup() {
 function gameLoop(delta) {
     state(delta);
 }
-
+// START GAME
 function play() {
     // move the explorer & contain him
     explorer.x += explorer.vx;
@@ -175,17 +174,19 @@ function play() {
     // check if the explorer is alive
       if (healthBar.health.width < 0) {
         state = end;
-        gameOverText.text = 'You lost!';
+        gameOverText.position.set(screenSize.width / 2 - 150, screenSize.height / 2 - 32);
+        gameOverText.text = 'Game Over';
       }
     // check for a collision 
     if (collisionTest(treasure, door)) {
         state = end;
-        gameOverText.text = 'You won';
+        gameOverText.position.set(screenSize.width / 2 - 250, screenSize.height / 2 - 32);
+        gameOverText.text = 'Nice, you won!';
       }
 }
-//change the game state to end when the game is finished
+
+// END GAME
 function end() {
     gameScene.visible = false;
     app.stage.addChild(gameOverScene);
-    // gameOverScene.visible = true;
 }

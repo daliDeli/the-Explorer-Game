@@ -1,3 +1,3 @@
-export function generateFoes() {
-    return 5 + Math.floor( Math.random() * 12 );
+export function randomGen(min, max) {
+    return min + Math.floor( Math.random() * max );
 }
